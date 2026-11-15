@@ -27,7 +27,7 @@ install.packages("tidyverse")
 install.packages("ggplot2")
 install.packages("lm.beta")
 install.packages("ggpubr")
-install.packages("mosiac")
+install.packages("mosaic")
 install.packages("Hmisc")
 install.packages("car")
 install.packages("plyr")
@@ -122,12 +122,12 @@ Just like other variables in this dataset, we need to edit the dataframe since t
 ```{r}
 WVSimmigrant <- 
 WVSimmigrant %>% 
-filter(V39 >= "1" & V23 >= "1" & V2A == c("United States")) 
+filter(V39 >= 1 & V23 >= 1 & V2A == c("United States")) 
 WVSimmigrant
 ```
 
 
-Now given we are building a linear model with a categorical variable, coding is really important for our explanatory variable. We want to find the increment in life satisfaction needed from the group who reported they would not like to have immigrants as neighbors to those who don't mind. Currently the V39 variable is coded 1=not mentioned and 2=mentioned. We need to replace the code for mentioned (i.e., 2) so that it becomes the intercept in our model. To do this, we need to replace 2 with 0 - so that the intercept in our linear model reflects the mean value of life satisfaction for those who would not like to have immigrants as neighbors.
+Now given we are building a linear model with a categorical variable, coding is really important for our explanatory variable. We want to find the increment in life satisfaction needed from the group who reported they would not like to have immigrants as neighbors to those who don't mind. Currently the V39 variable is coded 1=mentioned and 2=not mentioned. We want the group who mentioned immigrants (code 1, those who would not like to have immigrants as neighbors) to be the intercept in our model. Because we turn V39 into a factor, R uses its first level, 1, as the reference, so the intercept in our linear model reflects the mean value of life satisfaction for those who would not like to have immigrants as neighbors. Replacing 2 with 0 just relabels the other group; it does not change which group is the reference.
 
 
 ```{r}
@@ -139,10 +139,10 @@ Now lets run the histogram and look at the look at the life satisfaction distrib
 ```{r}
 WVSimmigrant %>%
   ggplot(aes(x= V23)) +
-  geom_histogram(aes(y=..density..), binwidth=1, colour="black", fill="white") + 
+  geom_histogram(aes(y=after_stat(density)), binwidth=1, colour="black", fill="white") + 
   geom_density(adjust = 4, alpha = .2, fill = "antiquewhite3") +
-  geom_vline(aes(xintercept=mean(V23)), col="black", linetype="dashed", size=1) +
-  geom_vline(aes(xintercept=median(V23)), col="black", size=1) +
+  geom_vline(aes(xintercept=mean(V23)), col="black", linetype="dashed", linewidth=1) +
+  geom_vline(aes(xintercept=median(V23)), col="black", linewidth=1) +
   ylab("Density") +
   xlab("Life Satisfaction")+
   ggtitle("Distribution of Life Satisfaction in the USA") +
@@ -158,7 +158,7 @@ Okay great, we are ready to go. Lets first inspect this data and take a look at 
 favstats(~V23, V39, data=WVSimmigrant) # the second line of favstats is our factor and it splits the satisfaction scores into a mean for the two groups.
 ```
 
-Remember that those who mentioned they would not like to have immigrants as neighbors are coded as 0, all else are coded 1.
+Remember that those who mentioned they would not like to have immigrants as neighbors are coded as 1, all else are coded 0 (and code 1 is the reference group, the intercept).
 
 We can see that the means are pretty close but there is a slight difference in favor of the all else group. Lets quickly work that mean difference in R.
 
@@ -180,7 +180,7 @@ immigrant.model <- lm(V23 ~ 1 + V39, data=WVSimmigrant)
 summary(immigrant.model) 
 ```
 
-Notice that the intercept part of our model - bo - is the same as the mean score for those who would not like to have immigrants as neighbors - 7.24? Notice also that b1 is the mean difference or the increment needed to get to those who did not mention that would not like to have immigrants as neighbors (i.e.,  .24 + 7.24 = 7.48)? This shows that we now have two parameters, and a mean difference that is exactly as we calculated by hand.
+Notice that the intercept part of our model - bo - is the same as the mean score for those who would not like to have immigrants as neighbors - 7.24? Notice also that b1 is the mean difference or the increment needed to get to those who did not mention that would not like to have immigrants as neighbors (i.e.,  .24 + 7.24 = 7.47, allowing for rounding)? This shows that we now have two parameters, and a mean difference that is exactly as we calculated by hand.
 
 Notice also we have the same other statistics as in our previous model. The standard error and the t-ratio. From what you now know about these statistics, you should be able to work out whether the difference of .24 is statistically meaningful. We have a t of 2.08 and a p value of .04 - we can reject the null hypothesis.
 
@@ -203,7 +203,7 @@ The implication from this analysis appears to be that Americans who reported the
 
 To this point, I've been showing you how we use the estimated standard deviation of the sampling distribution - or the *standard error* - to gauge how far away our estimate is from a zero effect. 
 
-When we take the standard error and divide it by the estimate we have a metric - a t ratio - that tells us how many standard errors our estimate is away from zero. If the t ratio is greater than 1.96, then we reject the null hypothesis and conclude that, assuming a normal sampling distribution, a zero mean difference is unlikely in the population.
+When we take the estimate and divide it by its standard error we have a metric - a t ratio - that tells us how many standard errors our estimate is away from zero. If the t ratio is greater than 1.96, then we reject the null hypothesis and conclude that, assuming a normal sampling distribution, a zero mean difference is unlikely in the population.
 
 We can make this assumption of a normal sampling distribution because of something called the central limit theorem (see lecture notes for more information)
 
@@ -236,7 +236,7 @@ We have a normal theory 95% confidence interval that runs from .02 to to .46. A 
 confint(immigrant.model) # this just takes the linear model R object and returns the confidence interval for the two estimates.
 ```
 
-Okay so we are a little off in our rounding but the interpretation stays the same. If we randomly sampled the same data 100 times, the true population mean difference would fall somewhere between .01 and .46 in 95 of those samples. Thats all we can say. 
+Okay so we are a little off in our rounding but the interpretation stays the same. If we repeated the study many times and calculated an interval like this each time, 95% of those intervals would contain the true population mean difference. We cannot know whether this particular interval (.01 to .46) is one of them, but the values inside it are the plausible values for the difference. Thats all we can say. 
 
 However, if zero is not included in that range then we can conclude that a zero mean difference is pretty unlikely.
 
@@ -251,7 +251,7 @@ We've established that there is a mean difference using both the t ratio and 95%
 supernova(immigrant.model)
 ```
 
-Okay, this table puts the sample mean difference into more perspective. Yes, it is statistically significant but the variance explained is tiny - PRE or R2 = 0.02%! This needs to be borne in mind when drawing conclusions. We have statistically significant difference, but is it practically meaningful? Perhaps not.
+Okay, this table puts the sample mean difference into more perspective. Yes, it is statistically significant but the variance explained is tiny - PRE or R2 = 0.2%! This needs to be borne in mind when drawing conclusions. We have statistically significant difference, but is it practically meaningful? Perhaps not.
 
 ## Calculating the 95% confidence interval for the estiamte using bootstrapping
 
@@ -272,6 +272,7 @@ In this way, bootsrapping permits us to generate a distribution of estimates tha
 So lets go ahead and generate a bootstrap sampling distribution of estimates using the Boot() function and save it as a new R object called immigrant.boot. Note that we are going to request 5000 resamples so that might take a little time to run!
 
 ```{r}
+set.seed(2026) # fixes the random resamples so that everyone gets the same result
 immigrant.boot <- Boot(immigrant.model, f=coef, R = 5000) # this function takes the linear model we built earlier and asks for the coeffiencts to be calculated in 5000 resamples with replacement from the original sample (R=5000)
 summary(immigrant.boot) # just like the linear model, the summary function outputs the summary of this analysis
 ```
@@ -289,22 +290,22 @@ And, just like normal theory, if zero is not included in the bootstrap 95% confi
 Lets go ahead and call the bootstrap 95% confidence interval using the confint() function.
 
 ```{r}
-confint(immigrant.boot, level = .95, type = "norm") # this function request the confidence intervals from the immigrant.boot object. The level is .95 because we want the 95% confidence intervals. The type is norm because we dont want to correct them in any way.
+confint(immigrant.boot, level = .95, type = "norm") # this function request the confidence intervals from the immigrant.boot object. The level is .95 because we want the 95% confidence intervals. type = "norm" takes the estimate plus or minus 1.96 bootstrap standard errors; type = "perc" would instead use the 2.5th and 97.5th percentiles of the 5000 bootstrap estimates.
 ```
 
-And well, what do you know! The bootstrap 95% confidence interval tells us something different to the normal theory 95% confidence interval. Here, we see that the range of values runs from -.0001 to .47 (your values might slightly differ to this, bootstrapping will produce slightly different estimates each time it resamples). Crucially, though, this range now includes zero! We cannot reject the null hypothesis.
+And well, what do you know! The bootstrap 95% confidence interval tells us something slightly different to the normal theory 95% confidence interval. With set.seed(2026), the range of values runs from -.005 to .47, so it only just includes zero (your values will differ slightly if you change the seed or leave it out, because bootstrapping draws different resamples each time). In fact the result sits right on the line: with other seeds, or with the percentile interval (type = "perc", which gives .002 to .48 here), the lower end lands just above zero instead.
 
-To get a clue about why the normal theory 95% confidence interval is too liberal (i.e., rejecting the null when it is possibly true), take a look at the distribution of life satisfaction above. We can see a negative skew meaning that a normal curve underestimates values below the mean, and overestimates them above the mean. These differences are marginal, but when the estimate is ONLY JUST significant, as is the case here, it can cause erroneous conclusions. This is why bootstrapping should always be preferred. It makes no assumptions about the distribution of variables and estimates.
+Why might the two methods disagree? Take a look at the distribution of life satisfaction above. It has a negative skew, while the normal theory interval assumes that the sampling distribution of the estimate is normal. With a sample this large the central limit theorem usually makes that assumption reasonable, so the two intervals differ only slightly - but when an estimate is ONLY JUST significant, as is the case here, a slight difference can flip the conclusion. Bootstrapping is a useful check because it makes fewer assumptions about the distribution of the estimates.
 
-As I mentioned in the lecture, bootstrapping the estimates is now the conventional way to determine statistical significance. So, therefore, the difference in life satisfaction between those who reported they would not like to have immigrants as neighbors and those who didn't mind immigrants as neighbors is not statistically significant.
+Either way, the take-home message is the same: a p value of .04 and a difference that explains 0.2% of the variance is weak evidence of a very small effect. A result this close to the line is best reported with its confidence interval, rather than as a yes-or-no verdict.
 
 We might write this is a research paper like so:
 
-An independent t-test was performed to test the difference in life satisfaction between Americans who reported they would not like to have immigrants as neighbors versus those who didn't mind immigrants as neighbors. The linear model indicated that not liking immigrants as neighbors  explained 0.02% of the variance in life satisfaction (R = .04, R2 = .002, F(1, 2214) = 4.333, p = .04). There was a statistically significant difference of 0.24 between Americans who reported that they would not like to have immigrants as neighbors (mean life satisfaction = 7.23, SD = 2.02) and those who reported no preference (mean life satisfaction = 7.47, SD = 1.83): t(2214) = 2.08, p = .04. The 95% confidence interval associated with this mean difference was obtained with 5,000 bootstrap resamples and included zero (mean difference = .24, 95% CI = -.001, .47). As such, the difference in life satisfaction between Americans who reported they would not like to have immigrants as neighbors and those who didn't mind immigrants as neighbors is not statistically significant. 
+An independent t-test was performed to test the difference in life satisfaction between Americans who reported they would not like to have immigrants as neighbors versus those who didn't mind immigrants as neighbors. The linear model indicated that not liking immigrants as neighbors  explained 0.2% of the variance in life satisfaction (R = .04, R2 = .002, F(1, 2214) = 4.333, p = .04). There was a statistically significant difference of 0.24 between Americans who reported that they would not like to have immigrants as neighbors (mean life satisfaction = 7.23, SD = 2.02) and those who reported no preference (mean life satisfaction = 7.47, SD = 1.83): t(2214) = 2.08, p = .04. The 95% confidence interval associated with this mean difference was obtained with 5,000 bootstrap resamples and included zero (mean difference = .24, 95% CI = -.005, .47). As such, the evidence for a difference in life satisfaction between Americans who reported they would not like to have immigrants as neighbors and those who didn't mind immigrants as neighbors is weak, and the difference itself is very small. 
 
 ## Exercise
 
-Okay, lets now give you a chance to set up and test a linear regression model with 95% normal theory and bootsrap confidence intervals. In the WHR dataset there is another interesting potential predictor of life satisfaction - satisfaction with financial situation of household. This variable asks the question: “How satisfied are you with the current financial situation of your household?" and is measured on a 1-10 scale:
+Okay, lets now give you a chance to set up and test a linear regression model with 95% normal theory and bootsrap confidence intervals. In the WVS dataset there is another interesting potential predictor of life satisfaction - satisfaction with financial situation of household. This variable asks the question: “How satisfied are you with the current financial situation of your household?" and is measured on a 1-10 scale:
 
 1. Completely dissatisfied
 
@@ -343,7 +344,7 @@ Just like other variables in this dataset, we need to edit the dataframe since t
 ```{r eval=FALSE}
 WVSfinance <- 
 WVSfinance %>% 
-filter(V59 >= "1" & V23 >= "1" & V2A == c("United States")) 
+filter(V59 >= 1 & V23 >= 1 & V2A == c("United States")) 
 WVSfinance
 ```
 
@@ -355,10 +356,10 @@ Write the code to draw a plot of the distribution of the finance satisfaction.
 ```{r eval=FALSE}
 WVSfinance %>% 
   ggplot(aes(x= V59)) + ## fill in the variable gap here for financial satisfaction
-  geom_histogram(aes(y=..density..), binwidth=1, colour="black", fill="white") + 
+  geom_histogram(aes(y=after_stat(density)), binwidth=1, colour="black", fill="white") + 
   geom_density(adjust = 4, alpha = .2, fill = "antiquewhite3") +
-  geom_vline(aes(xintercept=mean(V59)), col="black", linetype="dashed", size=1) +
-  geom_vline(aes(xintercept=median(V59)), col="black", size=1) +
+  geom_vline(aes(xintercept=mean(V59)), col="black", linetype="dashed", linewidth=1) +
+  geom_vline(aes(xintercept=median(V59)), col="black", linewidth=1) +
   ylab("density") + # add appropriate y lab 
   xlab("satisfaction") + # add appropriate x lab
   ggtitle("Distribution of financial staisfaction in the WVS") +
@@ -374,7 +375,7 @@ Slight negative skew
 Now use the rcorr() function to call the correlation coefficient - or Pearson's r - for the relationship between financial satisfaction and life satisfaction.
 
 ```{r eval=FALSE}
-rcorr(as.matrix(WVSfinance[,c("V59","V23")], type="pearson")) # fill in the ?? gap here for the explanatory variable
+rcorr(as.matrix(WVSfinance[,c("V59","V23")]), type="pearson") # fill in the ?? gap here for the explanatory variable
 ```
 
 What is the correlation coefficient?
@@ -489,7 +490,7 @@ confint(finance.model) # add the finance model to the confint() function
 
 What is the normal theory 95% confidence interval for the slope of finance satisfaction on life satisfaction?
 
-.38 to .43
+.38 to .44
 
 What does this confidence interval tell us?
 
@@ -505,12 +506,13 @@ THe confidence interval does not include a zero effect
 
 # Task 9 - Generate the bootsrap sampling distribution
 
-We can see that the normal theory confidence interval supports our conclusions from the linear model. This is not a surprise, p values and confidence intervals are equivalent. However, we also know that they may be biased if the variables or estimates are normally distributed. The solution this is, od course, is to bootstrap the estimates!
+We can see that the normal theory confidence interval supports our conclusions from the linear model. This is not a surprise, p values and confidence intervals are equivalent. However, we also know that they may be biased if the variables or estimates are not normally distributed. The solution this is, od course, is to bootstrap the estimates!
 
 So lets go ahead and generate a bootstrap sampling distribution of estimates using the Boot() function and save it as a new R object called finance.boot. Note that we are going to request 5000 resamples so that might take a little time to run!
 
 ```{r eval=FALSE}
-#finance.boot <- Boot(finance.model, f=coef, R = 5000) 
+set.seed(2026)
+finance.boot <- Boot(finance.model, f=coef, R = 5000) 
 summary(finance.boot) ## add the finance model and stipulate how many resamples you want to run (typically 5,000)
 ```
 
@@ -552,4 +554,4 @@ Confidence interval does not include zero
 
 How might you write this analysis up in a paper?
 
-A simple regression analysis was performed to test the relationship between financial satisfaction and life satisfaction among Americans in the World Values Survey. The regression model indicated that financial satisfaction explained 28% of the variance in life satisfaction (R = .53, R2 = .28, F(1) = 843.64, p < .001). Inspection of the model estimates indicated that financial satisfaction positively predicted life satisfaction (b = .41, β = .53, t (2208) = 29.05, p < .001). The 95% confidence interval associated with this estimate was obtained with 5,000 bootstrap resamples and did not include zero (95% CI = .38, .44).
+A simple regression analysis was performed to test the relationship between financial satisfaction and life satisfaction among Americans in the World Values Survey. The regression model indicated that financial satisfaction explained 28% of the variance in life satisfaction (R = .53, R2 = .28, F(1, 2208) = 843.64, p < .001). Inspection of the model estimates indicated that financial satisfaction positively predicted life satisfaction (b = .41, β = .53, t (2208) = 29.05, p < .001). The 95% confidence interval associated with this estimate was obtained with 5,000 bootstrap resamples and did not include zero (95% CI = .38, .44).

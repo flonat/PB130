@@ -50,13 +50,13 @@ library(Hmisc)
 
 This week, we are going to use data from the World Happiness Report 2019 (WHR). The World Happiness Report is a landmark survey of the state of global happiness that ranks 156 countries by how happy their citizens perceive themselves to be.  
 
-You can go to the WHR site to see what we’ll be working with. Don’t download anything: https://worldhappiness.report/. We will be looking at data from 2019, which includes mean scores for happiness between 2008 and 2018 for each country.
+You can go to the WHR site to see what we’ll be working with. Don’t download anything: https://worldhappiness.report/. We will be looking at data from 2019, which includes mean scores for happiness between 2005 and 2018 for each country (one row per country and year, so most countries appear several times).
 
 You can access the original .xls file of the data here: https://s3.amazonaws.com/happiness-report/2019/Chapter2OnlineData.xls. Becasue the file is not very R friendly, I have trimmed it down to include just the variables of interest for this session and saved it as a .csv file. These variables are:
 
 1. *Happiness score or subjective well-being (variable name "Happiness")*: The survey measure of happiness is from the January, 2019 release of the Gallup World Poll (GWP) covering years from 2005 to 2018, as well the special GWP surveys for four countries in 2018. Unless stated otherwise, it is the *national average* response to the question of happiness. The English wording of the question is “Please imagine a ladder, with steps numbered from 0 at the bottom to 10 at the top. The top of the ladder represents the best possible life for you and the bottom of the ladder represents the worst possible life for you. On which step of the ladder would you say you personally feel you stand at this time?” This measure is also referred to as Cantril life ladder, or just life ladder in our analysis.
 
-2. *GDP per capita (variable name "GDP")*: The survey measure of GDP is purchasing power parity (PPP) at constant 2011 international dollar prices are from the November 14, 2018 update of the World Development Indicators (WDI). The GDP figures
+2. *Log GDP per capita (variable name "GDP")*: the variable is the natural log of GDP per capita, so a one-unit increase means GDP per capita multiplied by about 2.7. The survey measure of GDP is purchasing power parity (PPP) at constant 2011 international dollar prices are from the November 14, 2018 update of the World Development Indicators (WDI). The GDP figures
 for Taiwan, up to 2014, are from the Penn World Table 9. A few countries are missing the GDP numbers in the WDI release but were present in earlier releases. We use the numbers from the earlier release, after adjusting their levels by a factor of 1.17 to take into account changes in the implied prices when switching from the PPP 2005 prices used in the earlier release to the PPP 2011 prices used in the latest release. The factor of 1.17 is the average ratio derived by dividing the US GDP per capita under the 2011 prices with their counterparts under the 2005 prices.
 
 3. *Gini of household income reported in the GWP (variable name "GINI")*: The income inequality variable is described in Gallup’s “WORLDWIDE RESEARCH METHODOLOGY AND CODEBOOK” (Updated July 2015) as “Household Income International Dollars [...] To calculate income, respondents are asked to report their household income in local currency. Those respondents who have difficulty answering the question are presented a set of ranges in local currency and are asked which group they fall into. Income variables are created by converting local currency to International Dollars (ID) using purchasing power parity (PPP) ratios.”
@@ -98,14 +98,14 @@ favstats(~GDP, data=WHR)
 
 Helpfully, the WHR data only contains relevant data - that is, there are no minus or coded values for things like no response or "dont know" as there are in the WVS dataset. However, we do have 28 missing values in the GDP variable,  so they will need to be dealt with.
 
-Inspecting the descriptives shows that the happiness variable has a mean of 5.44 and a SD of 1.12. Most mean happiness scores appear to fall above the scale mid-point, but there is a good amount of variance around this average. The GDP variable on the other hand has a mean of 9.22 and a SD of 1.18. It is difficult to interpret the meaning of this mean score, but we do know that there is far less variance in the GDP variable than in the happiness variable.
+Inspecting the descriptives shows that the happiness variable has a mean of 5.44 and a SD of 1.12. Most mean happiness scores appear to fall above the scale mid-point, but there is a good amount of variance around this average. The GDP variable on the other hand has a mean of 9.22 and a SD of 1.18. Because GDP is on a log scale, this mean is easier to read after converting it back: exp(9.22) is about 10,000 international dollars per person. Its spread is similar to that of happiness (SD 1.19 against 1.12).
 
 We can visualize these distributions to get a better picture. But before we do that, lets just filter the GDP variable to get rid of the cases with missing values.
 
 ```{r}
 WHR <- # into existing dataframe
 WHR %>% # from existing daraframe
-filter(GDP >= "1") # Filter GDP at a value of 1 and above (i.e., rid the dataframe of any non-numeric cases)
+filter(!is.na(GDP)) # keep only the rows where GDP is not missing (NA)
 WHR
 ```
 
@@ -114,10 +114,10 @@ Now lets run the histograms. First lets look at the happiness distribution.
 ```{r}
 WHR %>% 
   ggplot(aes(x= Happiness)) +
-  geom_histogram(aes(y=..density..), binwidth=.4, colour="black", fill="white") + 
+  geom_histogram(aes(y=after_stat(density)), binwidth=.4, colour="black", fill="white") + 
   geom_density(adjust = 4, alpha = .2, fill = "antiquewhite3") +
-  geom_vline(aes(xintercept=mean(Happiness)), col="black", linetype="dashed", size=1) +
-  geom_vline(aes(xintercept=median(Happiness)), col="black", size=1) +
+  geom_vline(aes(xintercept=mean(Happiness)), col="black", linetype="dashed", linewidth=1) +
+  geom_vline(aes(xintercept=median(Happiness)), col="black", linewidth=1) +
   ylab("Density") +
   xlab("Happiness")+
   ggtitle("Distribution of Happiness in the WHR") +
@@ -130,10 +130,10 @@ Nice symmetrical distribution of happiness here. We have a bell shaped curve and
 ```{r}
 WHR %>% 
   ggplot(aes(x= GDP)) +
-  geom_histogram(aes(y=..density..), binwidth=.4, colour="black", fill="white") + 
+  geom_histogram(aes(y=after_stat(density)), binwidth=.4, colour="black", fill="white") + 
   geom_density(adjust = 4, alpha = .2, fill = "antiquewhite3") +
-  geom_vline(aes(xintercept=mean(GDP)), col="black", linetype="dashed", size=1) +
-  geom_vline(aes(xintercept=median(GDP)), col="black", size=1) +
+  geom_vline(aes(xintercept=mean(GDP)), col="black", linetype="dashed", linewidth=1) +
+  geom_vline(aes(xintercept=median(GDP)), col="black", linewidth=1) +
   ylab("Density") +
   xlab("GDP")+
   ggtitle("Distribution of GDP in the WHR") +
@@ -173,7 +173,7 @@ We calculate Pearson's r by taking the covariance and dividing it by the SD of x
 
 
 ```{r}
-1.036095/(1.185794*1.121546) # here I am taking the covariance between GDP and happiness (1.036) and dividing it by the product of the SD of GDP (1.18) multiplied by the SD of perfectionism (1.12)
+1.036095/(1.185794*1.121546) # here I am taking the covariance between GDP and happiness (1.036) and dividing it by the product of the SD of GDP (1.18) multiplied by the SD of happiness (1.12)
 ```
 
 Because the covariance has been divided by the combined SD of the variables, it is now a standardized metric and runs between -1 and +1. The closer Pearson's r is to +/-1, the larger the relationship.
@@ -195,7 +195,7 @@ As a standardized metric, Pearson's r can be interpreted just like t or z and us
 The cor() R function does not return p values, but the rcorr() function in the Hmisc package does. So lets run the same analysis using the rcorr() function.
 
 ```{r}
-rcorr(as.matrix(WHR[,c("GDP","Happiness")], type="pearson"))
+rcorr(as.matrix(WHR[,c("GDP","Happiness")]), type="pearson")
 
 ## or 
 
@@ -224,7 +224,7 @@ ggplot(aes(x = GDP, y = Happiness)) + # This is the same as in the visualisation
     stat_smooth(method = "lm",
         col = "red",
         se = FALSE,
-        size = 1) + # this is a request for the best fitting regression line from the linear model ("lm"), color red and size 1.
+        linewidth = 1) + # this is a request for the best fitting regression line from the linear model ("lm"), color red and size 1.
   theme_classic(base_size = 8) # I prefer the classic theme for scatter plots, but feel free to experiment
 ```
 
@@ -238,7 +238,7 @@ Error is measured in terms of the residual, or the observed score for happiness 
 WHR %>%
 ggplot(aes(x = GDP, y = Happiness)) + 
     geom_point() + # this is just a request to plot the points
-    geom_hline(aes(yintercept=mean(Happiness)), col="blue", size=1) + # this adds a line for the mean (empty model)
+    geom_hline(aes(yintercept=mean(Happiness)), col="blue", linewidth=1) + # this adds a line for the mean (empty model)
   ggtitle("Empty Model") +
   theme_classic(base_size = 8)
 # plot 2, regression model
@@ -248,18 +248,18 @@ ggplot(aes(x = GDP, y = Happiness)) +
     stat_smooth(method = "lm",
         col = "red",
         se = FALSE,
-        size = 1) + 
+        linewidth = 1) + 
   ggtitle("Regression Model") +
   theme_classic(base_size = 8)
 # plot 3, empty and regression model
 WHR %>%
 ggplot(aes(x = GDP, y = Happiness)) + 
     geom_point() + 
-  geom_hline(aes(yintercept=mean(Happiness)), col="blue", size=1) +
+  geom_hline(aes(yintercept=mean(Happiness)), col="blue", linewidth=1) +
     stat_smooth(method = "lm",
         col = "red",
         se = FALSE,
-        size = 1) + 
+        linewidth = 1) + 
   ggtitle("Empty vs Regression Model") +
   theme_classic(base_size = 8)
 ```
@@ -317,7 +317,7 @@ happiness.modelZ <- lm(zhappiness ~ 1 + zGDP, data = WHR)
 summary(happiness.modelZ)
 ```
 
-I have no idea why R uses scientific notation in the estimate for the standardised relationship, but it does. E-01 means move the decimal point 1 place to the left. Hence, the standardized estimate for the slope of GDP and happiness is 0.79. A couple of things to notice about this standardized estimate. First, it is different from the unstandardised estimate (0.74). This is because rather than raw units, the standardized estimate shows that for every 1 SD unit increase in GDP there is a .78 SD increase in happiness. Remember that z-sores have a mean of zero and SD of 1. Therefore, the standardised estimates can only range from -1 to +1. A standardized estimate of .74 is a very large effect!
+I have no idea why R uses scientific notation in the estimate for the standardised relationship, but it does. E-01 means move the decimal point 1 place to the left. Hence, the standardized estimate for the slope of GDP and happiness is 0.78. A couple of things to notice about this standardized estimate. First, it is different from the unstandardised estimate (0.74). This is because rather than raw units, the standardized estimate shows that for every 1 SD unit increase in GDP there is a .78 SD increase in happiness. Remember that z-sores have a mean of zero and SD of 1. With a single explanatory variable, the standardised estimate is the correlation, so it can only range from -1 to +1. A standardized estimate of .78 is a very large effect!
 
 Second, in simple regression, where there is only one explanatory variable, the standardised estimate is exactly the same as Pearson's r. Take a look at the correlation matrix above to check this. This is not a coincidence - both are standardized estimates with equivalent calculations (see lecture notes). 
 
@@ -327,7 +327,7 @@ Rather than scaling the variables, there is a quicker way to call standardized e
 lm.beta(happiness.model1)
 ```
 
-Here you can see that the intercept is zero (the line is drawn through the joint means of happiness and GDP therefore when x = 0, y = 0) and the GDP slope is .78 - just as we have just calculated above (within errors of rounding).
+Here you can see that the intercept is not shown (recent versions of lm.beta print NA for it); on standardised scores it would be zero (the line is drawn through the joint means of happiness and GDP therefore when x = 0, y = 0) and the GDP slope is .78 - just as we have just calculated above (within errors of rounding).
 
 ## Partitioning variance
 
@@ -392,7 +392,7 @@ ggplot(aes(x = GDP, y = Happiness)) +
     stat_smooth(method = "lm",
         col = "red",
         se = FALSE,
-        size = 1) +
+        linewidth = 1) +
   theme_classic(base_size = 8) +
   stat_cor() + # the retruns the correlation coefficient 
   stat_regline_equation(label.y = 7) # this returns the GLM equation
@@ -400,7 +400,7 @@ ggplot(aes(x = GDP, y = Happiness)) +
 
 ## How its written
 
-A simple regression analysis was performed to test the relationship between GDP and Happiness in the World Happiness Report data. The regression model indicated that GDP explained 61% of the variance in Happiness (R = .78, R2 = .61, F(1) = 2584.90, p < .001). Inspection of the model estimates indicated that GDP positively predicted Happiness (b = .74, β = .78, t (1674) = 50.84, p < .001). 
+A simple regression analysis was performed to test the relationship between GDP and Happiness in the World Happiness Report data. The regression model indicated that GDP explained 61% of the variance in Happiness (R = .78, R2 = .61, F(1, 1674) = 2584.90, p < .001). Inspection of the model estimates indicated that GDP positively predicted Happiness (b = .74, β = .78, t (1674) = 50.84, p < .001). 
 
 
 ## Exercise
@@ -421,7 +421,7 @@ As with the GDP variable, there are some missing data points for the GINI coeffi
 ```{r eval=FALSE}
 WHR <- 
 WHR %>% 
-filter(GINI >= "0") # Fill in the gap here for values equal to and above 0
+filter(!is.na(GINI)) # keep only the rows where GINI is not missing (NA)
 WHR
 ```
 
@@ -432,10 +432,10 @@ Write the code to draw a plot of the distribution of the GINI coefficient. Given
 ```{r eval=FALSE}
 WHR %>% 
   ggplot(aes(x= ??)) + ## fill in the variable gap here for GINI
-  geom_histogram(aes(y=..density..), binwidth=.05, colour="black", fill="white") + 
+  geom_histogram(aes(y=after_stat(density)), binwidth=.05, colour="black", fill="white") + 
   geom_density(adjust = 4, alpha = .2, fill = "antiquewhite3") +
-  geom_vline(aes(xintercept=mean(GINI)), col="black", linetype="dashed", size=1) +
-  geom_vline(aes(xintercept=median(GINI)), col="black", size=1) +
+  geom_vline(aes(xintercept=mean(GINI)), col="black", linetype="dashed", linewidth=1) +
+  geom_vline(aes(xintercept=median(GINI)), col="black", linewidth=1) +
   ylab("??") + # add appropriate y lab 
   xlab("??") + # add appropriate x lab
   ggtitle("Distribution of GINI in the WHR") +
@@ -449,7 +449,7 @@ Is the distribution of the GINI coefficient approximately normal?
 Now use the rcorr() function to call the correlation coefficient - or Pearson's r - for the relationship between GINI and happiness.
 
 ```{r eval=FALSE}
-rcorr(as.matrix(WHR[,c("??","??")], type="??")) # fill in the ?? gaps here for the explanatory variable and the correlation type (pearson)
+rcorr(as.matrix(WHR[,c("??","??")]), type="??") # fill in the ?? gaps here for the explanatory variable and the correlation type (pearson)
 ```
 
 What is the correlation between GINI and happiness?
@@ -469,7 +469,7 @@ ggplot(aes(x = ??, y = ??)) + # fill in the ?? gaps here
     stat_smooth(method = "lm",
         col = "red",
         se = FALSE,
-        size = 1) + 
+        linewidth = 1) + 
   ggtitle("Regression Model") +
   theme_classic(base_size = 8)
 ```
@@ -501,7 +501,7 @@ Why?
 
 ## Task 6 - The standardized estimate
 
-You will see above that the unstandardized estimate for GINI looks very different to the unstandardized estimate for GDP. Every 1 unit increase in GINI equates to a 2.65 decrease in happiness according to our model. On the surface, that looks like a much larger effect than GDP (.74) but we know from the correlation coefficient that the relationship is in fact much smaller (-.19 vs .78). So what is going on here? Well, the relationship appears bigger in the linear model because GINI has a very different scale of measurement than GDP (0-1 versus 0-12). So a 1 unit increase in GINI has a very different meaning to a 1 unit increase in GDP. This is why standardized estimate are so useful - they force the unit of measurement to the same scale so that effects can be directly compared. So lets go ahead and do that now. In the below chunk, use the lm.beta() function to calculate the standardized estimate for the slope of GINI and happiness.
+You will see above that the unstandardized estimate for GINI looks very different to the unstandardized estimate for GDP. Every 1 unit increase in GINI equates to a 2.65 decrease in happiness according to our model. On the surface, that looks like a much larger effect than GDP (.74) but we know from the correlation coefficient that the relationship is in fact much smaller (-.19 vs .78). So what is going on here? Well, the relationship appears bigger in the linear model because GINI has a very different scale of measurement than GDP (0-1 versus log GDP, which runs from about 6.5 to 11.8). So a 1 unit increase in GINI has a very different meaning to a 1 unit increase in GDP. This is why standardized estimate are so useful - they force the unit of measurement to the same scale so that effects can be directly compared. So lets go ahead and do that now. In the below chunk, use the lm.beta() function to calculate the standardized estimate for the slope of GINI and happiness.
 
 ```{r eval=FALSE}
 lm.beta(??) # add happiness GINI model to the lm.beta function
